@@ -89,6 +89,11 @@ module.exports = {
                 })
                 quiz.timeOut = selectedQuestion.timedOut
               })
+
+              ans.started = new Date()
+              Answer.update({_id: ans._id.toString()}, {started: ans.started}).then((doc) => {
+                console.log(doc)
+              })
               return res.status(200).send(quiz)
             })
             .catch(err => res.status(500).send({error: err}));
@@ -118,11 +123,13 @@ module.exports = {
             .then(questionDetail => {
               if (!questionDetail) res.status(404).send({error: 'Question does not exist'})
               else {
-                let {answers, currentLevel, questions} = answerData
+                let {answers, currentLevel, questions, result, finished} = answerData
                 if (questions.length > answers.length) {
                   answers.push(answer)
+                  result.push(answer === questionDetail.answer)
+                  finished = answers.length === 30
                   if (answer === questionDetail.answer) currentLevel++
-                  Answer.update({_id: answerData._id}, {answers, currentLevel})
+                  Answer.update({_id: answerData._id}, {answers, currentLevel, result, finished})
                     .then(_ => res.status(200).send({result: questionDetail.answer}))
                     .catch(err => res.status(500).send(err))
                 } else res.status(200).send({result: questionDetail.answer})
@@ -167,9 +174,14 @@ module.exports = {
                   Question.findOne(questionParams).skip(random)
                     .then(question => {
                       answer.questions = [...questions, question._id.toString()]
-                      Answer.update({_id: answer._id}, {questions: answer.questions})
+                      const newData = {
+                        questions: answer.questions
+                      }
+
+                      if (!answer.currentTimeout) newData.started = new Date()
+
+                      Answer.update({_id: answer._id}, newData)
                         .then(doc => {
-                          console.log(answer)
                           const quiz = {
                             questions: [],
                             answers: answer.answers || [],
@@ -185,6 +197,7 @@ module.exports = {
                                   options: selectedQuestion.options
                                 })
                                 quiz.timeOut = selectedQuestion.timedOut
+
                               })
                               return res.status(200).send(quiz)
                             })
@@ -195,12 +208,75 @@ module.exports = {
                     .catch(err => res.status(500).send(err))
                 })
                 .catch(err => res.status(500).send(err))
-
             })
             .catch(err => res.status(500).send(err))
         }
       })
       .catch(err => res.status(500).send(err))
+  },
+
+  reload: (req, res) => {
+    const project_id = req.project.id
+    if (!project_id) return res.status(401).end();
+    const {skill_id, profile_id} = req.body
+
+    const params = {
+      skill_id,
+      profile_id,
+      project_id
+    }
+    Answer.findOne(params)
+      .then(doc => {
+        const startedTime = new Date(doc.started).getTime()
+        const reloadedTime = new Date().getTime()
+        const passedTime = Math.ceil((reloadedTime - startedTime)/1000)
+        const _id = doc.questions.slice(-1).pop()
+        Question.findOne({_id}).then(question => {
+          const {timedOut} = question
+          const currentTimeout = timedOut - passedTime
+          Answer.update(params, {currentTimeout}).then(() => {
+            console.log(currentTimeout)
+          })
+        })
+        return null
+      })
+      .catch(err => console.log(err))
+
+  },
+
+  result: (req, res) => {
+    const project_id = req.project.id
+    if (!project_id) return res.status(401).end();
+    const skill_id = req.params.skill;
+    const profile_id = req.params.profile;
+
+    const params = {
+      skill_id,
+      profile_id,
+      project_id
+    }
+    Answer.findOne(params).then(answer => {
+      const {questions, answers, result} = answer
+
+      const quiz = {
+        answers, result, questions: []
+      }
+
+      Question.find({'_id': {$in: questions}})
+        .then(questionsData => {
+          questions.forEach(id => {
+            const selectedQuestion = questionsData.filter(item => item._id.toString() === id)[0] || {}
+            quiz.questions.push({
+              question: selectedQuestion.question,
+              options: selectedQuestion.options
+            })
+          })
+
+          return res.status(200).send(quiz)
+        })
+        .catch(err => res.status(500).send({error: err}));
+
+    })
   },
 
   findAll: function (req, res) {

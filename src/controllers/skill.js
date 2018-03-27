@@ -79,7 +79,7 @@ module.exports = {
     const project_id = req.project.id
     if (!project_id) return res.status(401).end();
 
-    const _id = req.body.id || req.params.id;
+    const _id = req.params.id;
     const {body} = req;
     const newData = {
       title: body.title,
@@ -89,17 +89,37 @@ module.exports = {
     if (body.image) {
       const base64Data = new Buffer(body.image.replace(/^data:image\/\w+;base64,/, ""),'base64')
       const type = body.image.split(';')[0].split('/')[1]
+
+      const params = {
+        Bucket: s3Config.bucket,
+        Key: uuid.v1(),
+        UploadId: uuid.v1(),
+        Body: base64Data,
+        ACL: 'public-read',
+        ContentEncoding: 'base64', // required
+        ContentType: `image/${type}` // required. Notice the back ticks
+      }
+
+      s3.upload(params, (err, data) => {
+        if (err) { return res.status(500).send(err)}
+        else {
+          newData.photo = data.Location
+
+          Skill.update({project_id, _id: {$in: _id}}, newData)
+            .then(doc => !doc
+              ? res.status(404).send({error: 'Skill does not exist'})
+              : res.status(200).send({status: true, message: "Update successfully"}))
+            .catch(err => res.status(500).send({error: err}));
+        }
+      });
+
     }
 
 
-    Skill.update({project_id, _id: {$in: _id}}, {
-      title: body.title,
-      description: body.description,
-      updated_at: new Date()
-    })
+    Skill.update({project_id, _id: {$in: _id}}, newData)
       .then(doc => !doc
         ? res.status(404).send({error: 'Skill does not exist'})
-        : res.status(200).send({status: true, message: "Deleted successfully"}))
+        : res.status(200).send({status: true, message: "Update successfully"}))
       .catch(err => res.status(500).send({error: err}));
   },
 

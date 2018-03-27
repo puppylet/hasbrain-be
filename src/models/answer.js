@@ -41,6 +41,10 @@ const answerSchema = new Schema({
     type: Number,
     default: 0
   },
+  result: {
+    type: Array,
+    default: []
+  },
   currentLevel: {
     type: Number,
     default: 1
