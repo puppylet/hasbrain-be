@@ -70,10 +70,10 @@ module.exports = {
 
     body.updated_at = new Date();
 
-    Bookmark.update({project_id, _id: {$in: _id}}, body)
+    Bookmark.update({project_id, _id}, body)
       .then(doc => !doc
         ? res.status(404).send({error: 'Bookmark does not exist'})
-        : res.status(200).send({status: true, message: "Deleted successfully"}))
+        : res.status(200).send({status: true, message: "Bookmark updated successfully"}))
       .catch(err => res.status(500).send({error: err}));
   },
 
