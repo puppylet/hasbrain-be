@@ -27,6 +27,10 @@ module.epxorts = mongoose.model('Bookmark', new Schema({
     type: Boolean,
     default: false,
   },
+  status: {
+    type: Number,
+    default: 1,
+  },
   created_at: {
     type: Date,
     default: Date.now()
