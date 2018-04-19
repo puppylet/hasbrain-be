@@ -27,6 +27,7 @@ module.exports = {
 
     if (req.query.completed) query.completed = req.query.completed === 'true'
     if (req.query.profile_id) query.profile_id = req.query.profile_id
+    if (req.query.status) query.status = parseInt(req.query.status, 0)
 
     Bookmark.count(query)
       .then(total => Bookmark.find(query).limit(limit).skip(offset).sort({_id: -1})
