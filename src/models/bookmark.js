@@ -19,6 +19,10 @@ module.epxorts = mongoose.model('Bookmark', new Schema({
     type: String,
     required: true
   },
+  photo: {
+    type: String,
+    default: null
+  },
   description: {
     type: String,
     required: true
